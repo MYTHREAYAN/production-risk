@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Production Delay Risk Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+  --bg-primary: #eaf4ff;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-input: #f5f9ff;
+
+  --accent-cyan: #0066cc;
+  --accent-orange: #ff6b00;
+  --accent-green: #2e7d32;
+
+  --risk-low: #2e7d32;
+  --risk-medium: #f9a825;
+  --risk-high: #d32f2f;
+
+  --text-primary: #1b1f24;
+  --text-secondary: #5a6b7a;
+
+  --border: #d0dbe8;
+  --grid-line: rgba(0,0,0,0.04);
+}
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Exo 2', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* HEADER */
+  .header {
+    position: relative;
+    z-index: 10;
+    background: linear-gradient(180deg, rgba(0,212,255,0.08) 0%, transparent 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 44px;
+    height: 44px;
+    border: 2px solid var(--accent-cyan);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    background: rgba(0,212,255,0.1);
+    animation: pulse-logo 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-logo {
+    0%,100% { box-shadow: 0 0 10px rgba(0,212,255,0.3); }
+    50% { box-shadow: 0 0 25px rgba(0,212,255,0.7); }
+  }
+
+  .logo-icon svg { width: 22px; height: 22px; fill: var(--accent-cyan); }
+
+  .header-title h1 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent-cyan);
+    text-shadow: 0 0 20px rgba(0,212,255,0.5);
+  }
+
+  .header-title p {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-secondary);
+    letter-spacing: 2px;
+  }
+
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--accent-green);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  /* MAIN LAYOUT */
+  .main-layout {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 0;
+    height: calc(100vh - 81px);
+  }
+
+  /* LEFT PANEL */
+  .left-panel {
+    overflow-y: auto;
+    padding: 24px;
+    border-right: 1px solid var(--border);
+  }
+
+  .left-panel::-webkit-scrollbar { width: 4px; }
+  .left-panel::-webkit-scrollbar-track { background: var(--bg-primary); }
+  .left-panel::-webkit-scrollbar-thumb { background: var(--accent-cyan); border-radius: 2px; }
+
+  /* SUMMARY TILES */
+  .summary-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .summary-tile {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s;
+  }
+
+  .summary-tile::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .summary-tile.total::before { background: var(--accent-cyan); }
+  .summary-tile.low::before { background: var(--risk-low); }
+  .summary-tile.medium::before { background: var(--risk-medium); }
+  .summary-tile.high::before { background: var(--risk-high); }
+
+  .summary-tile:hover { transform: translateY(-2px); }
+
+  .tile-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+  }
+
+  .tile-value {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+    margin: 6px 0 2px;
+  }
+
+  .summary-tile.total .tile-value { color: var(--accent-cyan); }
+  .summary-tile.low .tile-value { color: var(--risk-low); }
+  .summary-tile.medium .tile-value { color: var(--risk-medium); }
+  .summary-tile.high .tile-value { color: var(--risk-high); }
+
+  .tile-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  /* INPUT SECTION */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent-cyan);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-title::before {
+    content: '';
+    display: block;
+    width: 3px; height: 16px;
+    background: var(--accent-cyan);
+    box-shadow: 0 0 8px var(--accent-cyan);
+  }
+
+  /* ORDER FORM */
+  .order-form-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 20px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  .order-form-container::before {
+    content: 'ORDER INPUT';
+    position: absolute;
+    top: -10px; left: 16px;
+    background: var(--bg-card);
+    padding: 0 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--accent-cyan);
+    letter-spacing: 2px;
+  }
+
+  .orders-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .order-entry {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    padding: 16px;
+    position: relative;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+
+  .order-entry-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .order-entry-id {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--accent-cyan);
+    letter-spacing: 1px;
+  }
+
+  .btn-remove {
+    background: transparent;
+    border: 1px solid rgba(255,45,85,0.4);
+    color: var(--risk-high);
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+
+  .btn-remove:hover { background: rgba(255,45,85,0.15); }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .form-row.two { grid-template-columns: repeat(2, 1fr); }
+
+  .form-group label {
+    display: block;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-secondary);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .form-group input {
+    width: 100%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 9px 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .form-group input:focus {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 8px rgba(0,212,255,0.2);
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.5) sepia(1) saturate(5) hue-rotate(175deg);
+  }
+
+  /* BUTTONS */
+  .btn-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .btn {
+    padding: 11px 22px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .btn:hover::after { opacity: 0.06; }
+  .btn:active::after { opacity: 0.12; }
+
+  .btn-add {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    flex: 1;
+  }
+
+  .btn-add:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+  .btn-analyze {
+    background: linear-gradient(135deg, #006080, var(--accent-cyan));
+    color: #000;
+    flex: 2;
+    font-weight: 700;
+  }
+
+  .btn-analyze:hover {
+    box-shadow: 0 0 20px rgba(0,212,255,0.5);
+    transform: translateY(-1px);
+  }
+
+  /* RESULTS */
+  .results-section { margin-top: 8px; }
+
+  .risk-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+    animation: slideIn 0.4s ease;
+    transition: transform 0.2s;
+  }
+
+  @keyframes slideIn { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+
+  .risk-card:hover { transform: translateY(-2px); }
+
+  .risk-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+  }
+
+  .risk-card.HIGH::before { background: var(--risk-high); box-shadow: 0 0 12px var(--risk-high); }
+  .risk-card.MEDIUM::before { background: var(--risk-medium); box-shadow: 0 0 12px var(--risk-medium); }
+  .risk-card.LOW::before { background: var(--risk-low); box-shadow: 0 0 12px var(--risk-low); }
+
+  .risk-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 14px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .risk-order-id {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .risk-badge {
+    padding: 5px 16px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+  }
+
+  .risk-badge.HIGH { background: rgba(255,45,85,0.2); color: var(--risk-high); border: 1px solid var(--risk-high); }
+  .risk-badge.MEDIUM { background: rgba(255,214,0,0.15); color: var(--risk-medium); border: 1px solid var(--risk-medium); }
+  .risk-badge.LOW { background: rgba(0,255,136,0.12); color: var(--risk-low); border: 1px solid var(--risk-low); }
+
+  .risk-card-body { padding: 14px 20px; }
+
+  .risk-reason {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+    line-height: 1.6;
+    font-style: italic;
+  }
+
+  .risk-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .metric {
+    background: var(--bg-secondary);
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+  }
+
+  .metric-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .metric-value {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  /* PROGRESS BAR */
+  .progress-wrap {
+    margin-top: 12px;
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+  }
+
+  .progress-bar {
+    height: 6px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    transition: width 0.8s ease;
+    position: relative;
+  }
+
+  .progress-fill::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: white;
+    opacity: 0.6;
+    filter: blur(1px);
+  }
+
+  .progress-fill.HIGH { background: linear-gradient(90deg, #7a0020, var(--risk-high)); }
+  .progress-fill.MEDIUM { background: linear-gradient(90deg, #7a6000, var(--risk-medium)); }
+  .progress-fill.LOW { background: linear-gradient(90deg, #007a40, var(--risk-low)); }
+
+  /* RISK SCORE GAUGE */
+  .score-ring {
+    width: 56px; height: 56px;
+    flex-shrink: 0;
+  }
+
+  /* RIGHT PANEL - CHATBOT */
+  .chat-panel {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary);
+    position: relative;
+  }
+
+  .chat-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(0,212,255,0.06), transparent);
+  }
+
+  .chat-header-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent-cyan);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ai-icon {
+    width: 28px; height: 28px;
+    border: 1px solid var(--accent-cyan);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    background: rgba(0,212,255,0.1);
+    animation: pulse-logo 2s ease-in-out infinite;
+  }
+
+  .chat-model-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+    margin-top: 3px;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .chat-messages::-webkit-scrollbar { width: 3px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .msg {
+    max-width: 90%;
+    animation: fadeIn 0.25s ease;
+  }
+
+  .msg.user { align-self: flex-end; }
+  .msg.assistant { align-self: flex-start; }
+
+  .msg-bubble {
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    position: relative;
+  }
+
+  .msg.user .msg-bubble {
+    background: linear-gradient(135deg, rgba(0,180,220,0.2), rgba(0,100,150,0.2));
+    border: 1px solid rgba(0,212,255,0.3);
+    color: var(--text-primary);
+    border-radius: 2px 0 2px 2px;
+  }
+
+  .msg.assistant .msg-bubble {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 0 2px 2px 2px;
+  }
+
+  .msg-time {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--text-secondary);
+    opacity: 0.6;
+    margin-top: 4px;
+    text-align: right;
+  }
+
+  .msg.assistant .msg-time { text-align: left; }
+
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    width: fit-content;
+    border-radius: 0 2px 2px 2px;
+  }
+
+  .typing-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    animation: typing 1.2s ease-in-out infinite;
+  }
+
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes typing { 0%,60%,100%{transform:translateY(0);opacity:0.4} 30%{transform:translateY(-6px);opacity:1} }
+
+  .chat-input-area {
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-card);
+  }
+
+  .quick-prompts {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  .quick-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 4px 10px;
+    font-size: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .quick-btn:hover {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    background: rgba(0,212,255,0.05);
+  }
+
+  .chat-input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .chat-input {
+    flex: 1;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 10px 14px;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 13px;
+    outline: none;
+    resize: none;
+    height: 42px;
+    transition: border-color 0.2s;
+  }
+
+  .chat-input:focus { border-color: var(--accent-cyan); }
+
+  .btn-send {
+    background: linear-gradient(135deg, #006080, var(--accent-cyan));
+    border: none;
+    color: #000;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-send:hover { box-shadow: 0 0 15px rgba(0,212,255,0.4); }
+  .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* WELCOME MSG */
+  .welcome-msg {
+    background: var(--bg-card);
+    border: 1px solid rgba(0,212,255,0.2);
+    padding: 16px;
+    margin-bottom: 8px;
+    border-radius: 0 2px 2px 2px;
+  }
+
+  .welcome-msg p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin-bottom: 6px;
+  }
+
+  .welcome-msg p:last-child { margin-bottom: 0; }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-secondary);
+  }
+
+  .empty-state svg { opacity: 0.2; margin-bottom: 16px; }
+  .empty-state p { font-size: 13px; line-height: 1.6; opacity: 0.6; }
+
+  /* LOADING */
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(5,10,15,0.8);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .loading-overlay.active { display: flex; }
+
+  .loader-ring {
+    width: 50px; height: 50px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent-cyan);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loader-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--accent-cyan);
+    letter-spacing: 2px;
+    animation: blink 1s ease-in-out infinite;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 1100px) {
+    .main-layout { grid-template-columns: 1fr; }
+    .chat-panel { height: 500px; border-right: none; border-top: 1px solid var(--border); }
+    .summary-bar { grid-template-columns: repeat(2, 1fr); }
+    .risk-metrics { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18L20 8v8l-8 4-8-4V8l8-3.82z"/></svg>
+    </div>
+    <div class="header-title">
+      <h1>Production Risk Dashboard</h1>
+      <p>INDUSTRIAL TRANSFORMATION &amp; AUTOMATION SYSTEM</p>
+    </div>
+  </div>
+  <div class="header-status">
+    <div class="status-dot"></div>
+    <span>SYSTEM ONLINE</span>
+  </div>
+</header>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loader-ring"></div>
+  <div class="loader-text">ANALYZING PRODUCTION RISK...</div>
+</div>
+
+<!-- MAIN -->
+<div class="main-layout">
+
+  <!-- LEFT: DASHBOARD -->
+  <div class="left-panel">
+
+    <!-- SUMMARY BAR -->
+    <div class="summary-bar">
+      <div class="summary-tile total">
+        <div class="tile-label">Total Orders</div>
+        <div class="tile-value" id="totalCount">0</div>
+        <div class="tile-sub">Monitored</div>
+      </div>
+      <div class="summary-tile low">
+        <div class="tile-label">Low Risk</div>
+        <div class="tile-value" id="lowCount">0</div>
+        <div class="tile-sub">On Track</div>
+      </div>
+      <div class="summary-tile medium">
+        <div class="tile-label">Medium Risk</div>
+        <div class="tile-value" id="mediumCount">0</div>
+        <div class="tile-sub">Monitor Closely</div>
+      </div>
+      <div class="summary-tile high">
+        <div class="tile-label">High Risk</div>
+        <div class="tile-value" id="highCount">0</div>
+        <div class="tile-sub">Action Required</div>
+      </div>
+    </div>
+
+    <!-- ORDER INPUT -->
+    <div class="order-form-container">
+      <div class="orders-grid" id="ordersGrid"></div>
+      <div class="btn-row">
+        <button class="btn btn-add" onclick="addOrder()">+ ADD ORDER</button>
+        <button class="btn btn-analyze" onclick="analyzeOrders()">⚡ ANALYZE RISK</button>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="results-section">
+      <div class="section-header">
+        <div class="section-title">Risk Assessment Results</div>
+        <span id="resultCount" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-secondary)"></span>
+      </div>
+      <div id="resultsContainer">
+        <div class="empty-state">
+          <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          <p>Add orders and click Analyze Risk<br>to see the production delay predictions.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: CHATBOT -->
+  <div class="chat-panel">
+    <div class="chat-header">
+      <div class="chat-header-title">
+        <div class="ai-icon">🤖</div>
+        <div>
+          AI Production Advisor
+          <div class="chat-model-badge">GROQ · LLAMA-3.3-70B-VERSATILE</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-messages" id="chatMessages">
+      <div class="welcome-msg">
+        <p>👋 Hello! I'm your AI production advisor powered by <strong style="color:var(--accent-cyan)">LLaMA 3.3 70B</strong>.</p>
+        <p>I can help you understand delay risks, suggest mitigation strategies, and answer questions about your production orders.</p>
+        <p>Analyze your orders first, then ask me anything!</p>
+      </div>
+    </div>
+
+    <div class="chat-input-area">
+      <div class="quick-prompts">
+        <button class="quick-btn" onclick="quickPrompt('What orders are at highest risk?')">High Risk Orders</button>
+        <button class="quick-btn" onclick="quickPrompt('How can I mitigate delays?')">Mitigate Delays</button>
+        <button class="quick-btn" onclick="quickPrompt('Explain the risk calculation')">Risk Logic</button>
+        <button class="quick-btn" onclick="quickPrompt('What should I prioritize?')">Prioritize</button>
+      </div>
+      <div class="chat-input-row">
+        <textarea class="chat-input" id="chatInput" placeholder="Ask about production risks..." onkeydown="handleKey(event)"></textarea>
+        <button class="btn-send" id="sendBtn" onclick="sendMessage()">SEND</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// STATE
+let orderCount = 0;
+let chatHistory = [];
+let lastResults = [];
+
+// INIT
+window.onload = () => {
+  addOrder(); // Start with one order
+  // Prefill demo values
+  setTimeout(() => {
+    const entries = document.querySelectorAll('.order-entry');
+    if (entries.length > 0) {
+      const inputs = entries[0].querySelectorAll('input');
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 2);
+      inputs[0].value = 'ORD-2024-001';
+      inputs[1].value = tomorrow.toISOString().split('T')[0];
+      inputs[2].value = 40;
+      inputs[3].value = 200;
+      inputs[4].value = 1000;
+      inputs[5].value = 1;
+    }
+  }, 50);
+};
+
+function addOrder() {
+  orderCount++;
+  const grid = document.getElementById('ordersGrid');
+  const div = document.createElement('div');
+  div.className = 'order-entry';
+  div.id = `order-${orderCount}`;
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 7);
+  const defaultDate = tomorrow.toISOString().split('T')[0];
+
+  div.innerHTML = `
+    <div class="order-entry-header">
+      <span class="order-entry-id">ORDER #${orderCount}</span>
+      <button class="btn-remove" onclick="removeOrder(${orderCount})">✕ REMOVE</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Order ID</label>
+        <input type="text" placeholder="ORD-001" value="ORD-${String(orderCount).padStart(3,'0')}">
+      </div>
+      <div class="form-group">
+        <label>Delivery Date</label>
+        <input type="date" value="${defaultDate}">
+      </div>
+      <div class="form-group">
+        <label>Progress %</label>
+        <input type="number" min="0" max="100" placeholder="0-100" value="50">
+      </div>
+    </div>
+    <div class="form-row two">
+      <div class="form-group">
+        <label>Daily Capacity (pcs)</label>
+        <input type="number" min="1" placeholder="200" value="200">
+      </div>
+      <div class="form-group">
+        <label>Total Quantity (pcs)</label>
+        <input type="number" min="1" placeholder="1000" value="1000">
+      </div>
+      <div class="form-group">
+        <label>Past Delays (days)</label>
+        <input type="number" min="0" placeholder="0" value="0">
+      </div>
+    </div>
+  `;
+  grid.appendChild(div);
+}
+
+function removeOrder(id) {
+  const el = document.getElementById(`order-${id}`);
+  if (el) el.remove();
+}
+
+function getOrders() {
+  const entries = document.querySelectorAll('.order-entry');
+  const orders = [];
+  entries.forEach(entry => {
+    const inputs = entry.querySelectorAll('input');
+    orders.push({
+      order_id: inputs[0].value || 'N/A',
+      delivery_date: inputs[1].value,
+      progress_pct: parseFloat(inputs[2].value) || 0,
+      capacity_per_day: parseFloat(inputs[3].value) || 100,
+      total_qty: parseFloat(inputs[4].value) || 1000,
+      past_delays: parseInt(inputs[5].value) || 0
+    });
+  });
+  return orders;
+}
+
+async function analyzeOrders() {
+  const orders = getOrders();
+  if (orders.length === 0) { alert('Please add at least one order.'); return; }
+
+  document.getElementById('loadingOverlay').classList.add('active');
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orders })
+    });
+    const data = await res.json();
+    lastResults = data.results;
+    renderResults(data.results);
+    updateSummary(data.results);
+  } catch (e) {
+    alert('Error analyzing orders: ' + e.message);
+  } finally {
+    document.getElementById('loadingOverlay').classList.remove('active');
+  }
+}
+
+function updateSummary(results) {
+  document.getElementById('totalCount').textContent = results.length;
+  document.getElementById('lowCount').textContent = results.filter(r => r.risk_level === 'LOW').length;
+  document.getElementById('mediumCount').textContent = results.filter(r => r.risk_level === 'MEDIUM').length;
+  document.getElementById('highCount').textContent = results.filter(r => r.risk_level === 'HIGH').length;
+}
+
+function renderResults(results) {
+  const container = document.getElementById('resultsContainer');
+  document.getElementById('resultCount').textContent = `${results.length} ORDER${results.length !== 1 ? 'S' : ''} ANALYZED`;
+
+  // Sort HIGH first
+  results.sort((a, b) => {
+    const order = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+    return order[a.risk_level] - order[b.risk_level];
+  });
+
+  container.innerHTML = results.map(r => {
+    const riskColors = { HIGH: '#ff2d55', MEDIUM: '#ffd600', LOW: '#00ff88' };
+    const color = riskColors[r.risk_level];
+    const scoreCircle = buildScoreCircle(r.risk_score, color);
+
+    return `
+      <div class="risk-card ${r.risk_level}">
+        <div class="risk-card-header">
+          <div style="display:flex;align-items:center;gap:12px">
+            ${scoreCircle}
+            <div>
+              <div class="risk-order-id">${r.order_id}</div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-secondary);margin-top:2px">${r.delivery_date} · ${r.days_left >= 0 ? r.days_left + ' DAYS LEFT' : 'OVERDUE'}</div>
+            </div>
+          </div>
+          <span class="risk-badge ${r.risk_level}">${r.risk_level} RISK</span>
+        </div>
+        <div class="risk-card-body">
+          <div class="risk-reason">⚠ ${r.reason}</div>
+          <div class="risk-metrics">
+            <div class="metric">
+              <div class="metric-label">Qty Remaining</div>
+              <div class="metric-value" style="color:${color}">${r.qty_remaining?.toLocaleString() || 0}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Can Produce</div>
+              <div class="metric-value">${(r.can_produce || 0).toLocaleString()}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Shortage</div>
+              <div class="metric-value" style="color:${r.shortage > 0 ? 'var(--risk-high)' : 'var(--risk-low)'}">${r.shortage > 0 ? r.shortage.toLocaleString() : 'NONE'}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Past Delays</div>
+              <div class="metric-value">${r.past_delays}d</div>
+            </div>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-label">
+              <span>PRODUCTION PROGRESS</span>
+              <span>${r.progress_pct}%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill ${r.risk_level}" style="width:${r.progress_pct}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function buildScoreCircle(score, color) {
+  const r = 22, cx = 28, cy = 28;
+  const circ = 2 * Math.PI * r;
+  const dash = (score / 100) * circ;
+  return `
+    <svg class="score-ring" viewBox="0 0 56 56">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#1a3a52" stroke-width="4"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="4"
+        stroke-dasharray="${dash} ${circ}" stroke-dashoffset="${circ * 0.25}"
+        stroke-linecap="round" style="filter:drop-shadow(0 0 4px ${color})"/>
+      <text x="${cx}" y="${cy+5}" text-anchor="middle" font-family="Rajdhani,sans-serif"
+        font-size="13" font-weight="700" fill="${color}">${score}</text>
+    </svg>`;
+}
+
+// CHAT
+function getContextString() {
+  if (lastResults.length === 0) return 'No orders analyzed yet.';
+  return lastResults.map(r =>
+    `Order ${r.order_id}: ${r.risk_level} RISK (score ${r.risk_score}). ${r.reason} Progress: ${r.progress_pct}%, ${r.days_left} days left, can produce ${r.can_produce} pcs, need ${r.qty_remaining} pcs, shortage: ${r.shortage} pcs.`
+  ).join('\n');
+}
+
+function quickPrompt(text) {
+  document.getElementById('chatInput').value = text;
+  sendMessage();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  const sendBtn = document.getElementById('sendBtn');
+  input.value = '';
+  sendBtn.disabled = true;
+
+  appendMsg('user', msg);
+  chatHistory.push({ role: 'user', content: msg });
+
+  const typingEl = appendTyping();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: msg,
+        context: getContextString(),
+        history: chatHistory.slice(-10)
+      })
+    });
+    const data = await res.json();
+    typingEl.remove();
+
+    const reply = data.reply || 'No response from AI.';
+    appendMsg('assistant', reply);
+    chatHistory.push({ role: 'assistant', content: reply });
+  } catch (e) {
+    typingEl.remove();
+    appendMsg('assistant', 'Connection error. Make sure Flask server is running and Groq API key is set.');
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+function appendMsg(role, text) {
+  const container = document.getElementById('chatMessages');
+  const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `
+    <div class="msg-bubble">${text.replace(/\n/g,'<br>')}</div>
+    <div class="msg-time">${time}</div>
+  `;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function appendTyping() {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg assistant';
+  div.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+</script>
+</body>
+</html>
